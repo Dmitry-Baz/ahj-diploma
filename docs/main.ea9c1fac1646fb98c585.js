@@ -1,0 +1,1 @@
+document.getElementById("app").innerHTML="<h1>Глобальный бот-органайзер</h1><p>Загружается...</p>";
