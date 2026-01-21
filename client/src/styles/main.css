@@ -3,3 +3,24 @@ body {
   margin: 0;
   padding: 20px;
 }
+
+.file-upload {
+  margin-bottom: 10px;
+}
+
+.file-upload.drag-over {
+  border: 2px dashed #007bff;
+  padding: 20px;
+  border-radius: 4px;
+}
+
+.message {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.download-btn {
+  margin-left: 10px;
+  font-size: 0.9em;
+  cursor: pointer;
+}
