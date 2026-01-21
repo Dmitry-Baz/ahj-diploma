@@ -8,43 +8,89 @@ let lastTimestamp = Infinity;
 let isLoading = false;
 let hasMore = true;
 
+// Работа с избранным
+function getFavorites() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem("favorites") || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function isFavorite(id) {
+  return getFavorites().has(id);
+}
+
+function toggleFavorite(msg) {
+  const favorites = getFavorites();
+  if (favorites.has(msg.id)) {
+    favorites.delete(msg.id);
+  } else {
+    favorites.add(msg.id);
+  }
+  localStorage.setItem("favorites", JSON.stringify(Array.from(favorites)));
+  renderChat(allMessages);
+}
+
 function createMessageElement(msg) {
   const el = document.createElement("div");
   el.className = `message message--${msg.type}`;
   el.style.padding = "10px 0";
   el.style.borderBottom = "1px solid #eee";
+  el.style.display = "flex";
+  el.style.alignItems = "flex-start";
+
+  // Кнопка "избранное"
+  const starBtn = document.createElement("button");
+  starBtn.textContent = isFavorite(msg.id) ? "⭐" : "☆";
+  starBtn.style.background = "none";
+  starBtn.style.border = "none";
+  starBtn.style.cursor = "pointer";
+  starBtn.style.marginRight = "8px";
+  starBtn.onclick = () => toggleFavorite(msg);
+  el.appendChild(starBtn);
+
+  // Контент
+  const contentEl = document.createElement("div");
+  contentEl.style.flex = "1";
 
   if (msg.type === "link") {
-    el.innerHTML = `<a href="${msg.content}" target="_blank" rel="noopener">${msg.content}</a>`;
+    contentEl.innerHTML = `<a href="${msg.content}" target="_blank" rel="noopener">${msg.content}</a>`;
   } else if (msg.type === "image") {
-    el.innerHTML = `
-      <img src="${msg.content
+    contentEl.innerHTML = `
+      <img src="${
+        msg.content
       }" alt="Изображение" style="max-width: 300px; max-height: 300px; display: block;" />
-      <button class="download-btn" data-url="${msg.content}" data-filename="${msg.filename || "image.jpg"
-      }" style="margin-top: 5px;">↓ Скачать</button>
+      <button class="download-btn" data-url="${msg.content}" data-filename="${
+      msg.filename || "image.jpg"
+    }" style="margin-top: 5px;">↓ Скачать</button>
     `;
   } else if (msg.type === "video") {
-    el.innerHTML = `
+    contentEl.innerHTML = `
       <video controls src="${msg.content}" style="width: 300px;"></video>
-      <button class="download-btn" data-url="${msg.content}" data-filename="${msg.filename || "video.mp4"
-      }" style="margin-top: 5px;">↓ Скачать</button>
+      <button class="download-btn" data-url="${msg.content}" data-filename="${
+      msg.filename || "video.mp4"
+    }" style="margin-top: 5px;">↓ Скачать</button>
     `;
   } else if (msg.type === "audio") {
-    el.innerHTML = `
+    contentEl.innerHTML = `
       <audio controls src="${msg.content}"></audio>
-      <button class="download-btn" data-url="${msg.content}" data-filename="${msg.filename || "audio.mp3"
-      }" style="margin-top: 5px;">↓ Скачать</button>
+      <button class="download-btn" data-url="${msg.content}" data-filename="${
+      msg.filename || "audio.mp3"
+    }" style="margin-top: 5px;">↓ Скачать</button>
     `;
   } else if (msg.type === "file") {
-    el.innerHTML = `
+    contentEl.innerHTML = `
       📄 ${msg.filename || "Файл"}
-      <button class="download-btn" data-url="${msg.content}" data-filename="${msg.filename || "file"
-      }" style="margin-left: 10px;">↓ Скачать</button>
+      <button class="download-btn" data-url="${msg.content}" data-filename="${
+      msg.filename || "file"
+    }" style="margin-left: 10px;">↓ Скачать</button>
     `;
   } else {
-    el.textContent = msg.content;
+    contentEl.textContent = msg.content;
   }
 
+  el.appendChild(contentEl);
   return el;
 }
 
@@ -58,24 +104,10 @@ function renderChat(messagesToShow) {
     return;
   }
 
-  // Отображаем в хронологическом порядке: старые → новые
   messagesToShow.forEach((msg) => {
     chat.appendChild(createMessageElement(msg));
   });
   chat.scrollTop = chat.scrollHeight;
-}
-
-function addMessageToChat(msg) {
-  const chat = document.getElementById("chat");
-  if (chat) {
-    // Преобразуем путь к файлу
-    if (msg.content && msg.content.startsWith("/uploads/")) {
-      msg.content = `${API_BASE}${msg.content}`;
-    }
-    chat.appendChild(createMessageElement(msg));
-    // Скролл вниз
-    chat.scrollTop = chat.scrollHeight;
-  }
 }
 
 async function loadInitialMessages() {
@@ -83,28 +115,27 @@ async function loadInitialMessages() {
   isLoading = true;
 
   try {
-    // Создаём UI, если ещё не создан
     if (!document.getElementById("chat")) {
       app.innerHTML = `
-    <h1>Бот-органайзер</h1>
-    <div style="margin-bottom: 10px;">
-      <input type="text" id="search-input" placeholder="Поиск по сообщениям..." 
-             style="width: 100%; padding: 8px; box-sizing: border-box;" />
-    </div>
-    <div id="chat" style="height: 380px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;"></div>
-    <div id="input-area" style="margin-top: 20px;">
-      <div id="file-upload" style="margin-bottom: 10px;">
-        <button id="upload-btn">📎 Загрузить файл</button>
-        <div id="drop-zone" style="border: 2px dashed #ccc; padding: 10px; margin-top: 5px; text-align: center;">
-          Или перетащите файл сюда
+        <h1>Бот-органайзер</h1>
+        <div style="margin-bottom: 10px;">
+          <input type="text" id="search-input" placeholder="Поиск по сообщениям..." 
+                 style="width: 100%; padding: 8px; box-sizing: border-box;" />
         </div>
-      </div>
-      <form id="message-form">
-        <input type="text" id="message-input" placeholder="Введите сообщение..." style="width: 70%; padding: 8px;" />
-        <button type="submit" style="padding: 8px 16px;">Отправить</button>
-      </form>
-    </div>
-  `;
+        <div id="chat" style="height: 380px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;"></div>
+        <div id="input-area" style="margin-top: 20px;">
+          <div id="file-upload" style="margin-bottom: 10px;">
+            <button id="upload-btn">📎 Загрузить файл</button>
+            <div id="drop-zone" style="border: 2px dashed #ccc; padding: 10px; margin-top: 5px; text-align: center;">
+              Или перетащите файл сюда
+            </div>
+          </div>
+          <form id="message-form">
+            <input type="text" id="message-input" placeholder="Введите сообщение..." style="width: 70%; padding: 8px;" />
+            <button type="submit" style="padding: 8px 16px;">Отправить</button>
+          </form>
+        </div>
+      `;
     }
 
     const params = new URLSearchParams();
@@ -124,7 +155,6 @@ async function loadInitialMessages() {
       }
       return msg;
     });
-    allMessages = [...messages];
 
     const chat = document.getElementById("chat");
     if (chat) {
@@ -132,14 +162,8 @@ async function loadInitialMessages() {
         chat.innerHTML = "<p>Сообщений нет</p>";
         hasMore = false;
       } else {
-        allMessages = [...messages]; // сохраняем
-        renderChat(messages); // отображаем
-        // Очищаем чат перед загрузкой
-        // chat.innerHTML = "";
-        // messages
-        //   .reverse()
-        //   .forEach((msg) => chat.appendChild(createMessageElement(msg)));
-        // chat.scrollTop = chat.scrollHeight;
+        allMessages = [...messages];
+        renderChat(messages);
         lastTimestamp = messages[0].timestamp;
         hasMore = messages.length >= 10;
       }
@@ -155,7 +179,6 @@ async function loadInitialMessages() {
 }
 
 function setupEventListeners() {
-  // Скачивание
   document.querySelectorAll(".download-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       const url = e.target.dataset.url;
@@ -163,7 +186,6 @@ function setupEventListeners() {
     });
   });
 
-  // Отправка текста
   const form = document.getElementById("message-form");
   if (form) {
     form.onsubmit = async (e) => {
@@ -172,9 +194,7 @@ function setupEventListeners() {
       const text = input.value.trim();
       if (text) {
         try {
-          // Отправляем на сервер
           await sendMessage(text);
-          // Мгновенно добавляем в чат
           const newMsg = {
             id: Date.now().toString(),
             type:
@@ -187,7 +207,6 @@ function setupEventListeners() {
           };
           allMessages.push(newMsg);
           renderChat(allMessages);
-          // addMessageToChat(newMsg);
           input.value = "";
         } catch (err) {
           alert("Не удалось отправить сообщение");
@@ -196,7 +215,6 @@ function setupEventListeners() {
     };
   }
 
-  // Загрузка файлов
   const uploadBtn = document.getElementById("upload-btn");
   if (uploadBtn) {
     uploadBtn.onclick = () => {
@@ -207,7 +225,6 @@ function setupEventListeners() {
         if (file) {
           try {
             const data = await uploadFile(file);
-            // Добавляем файл в чат
             const fileMsg = {
               id: Date.now().toString(),
               type: data.type,
@@ -215,9 +232,8 @@ function setupEventListeners() {
               timestamp: Date.now(),
               filename: data.filename,
             };
-            allMessages.push(newMsg);
+            allMessages.push(fileMsg); // ← исправлено: было newMsg
             renderChat(allMessages);
-            // addMessageToChat(fileMsg);
           } catch (err) {
             alert("Не удалось загрузить файл");
           }
@@ -250,7 +266,8 @@ function setupEventListeners() {
             timestamp: Date.now(),
             filename: data.filename,
           };
-          addMessageToChat(fileMsg);
+          allMessages.push(fileMsg);
+          renderChat(allMessages);
         } catch (err) {
           alert("Не удалось загрузить файл");
         }
@@ -258,30 +275,20 @@ function setupEventListeners() {
     });
   }
 
-  // Ленивая подгрузка
   const chat = document.getElementById("chat");
   if (chat) {
     chat.addEventListener("scroll", () => {
-      console.log(
-        "ScrollIndicator: scrollTop=",
-        chat.scrollTop,
-        "scrollHeight=",
-        chat.scrollHeight,
-        "clientHeight=",
-        chat.clientHeight
-      );
       if (
         chat.scrollHeight > chat.clientHeight &&
         chat.scrollTop <= 10 &&
         hasMore &&
         !isLoading
       ) {
-        console.log("🔄 Условие подгрузки выполнено");
         loadOlderMessages();
       }
     });
   }
-  // Поиск
+
   const searchInput = document.getElementById("search-input");
   if (searchInput) {
     searchInput.addEventListener("input", () => {
@@ -303,7 +310,6 @@ function setupEventListeners() {
 }
 
 async function loadOlderMessages() {
-  console.log("🔍 Запрос старых сообщений, lastTimestamp:", lastTimestamp);
   if (isLoading) return;
   isLoading = true;
 
@@ -314,10 +320,8 @@ async function loadOlderMessages() {
     const url = `${API_BASE}/api/messages?${params.toString()}`;
 
     const res = await fetch(url);
-    console.log("📥 Ответ сервера:", res.status);
     if (!res.ok) throw new Error("Ошибка загрузки");
     let messages = await res.json();
-    console.log("📨 Получены сообщения:", messages);
 
     messages = messages.map((msg) => {
       if (msg.content && msg.content.startsWith("/uploads/")) {
@@ -330,26 +334,18 @@ async function loadOlderMessages() {
     if (chat && messages.length > 0) {
       allMessages = [...messages, ...allMessages];
       renderChat(allMessages);
-      // Добавляем старые сообщения в начало
-      // messages.forEach((msg) => {
-      //   chat.insertBefore(createMessageElement(msg), chat.firstChild);
-      // });
       lastTimestamp = messages[messages.length - 1].timestamp;
       hasMore = messages.length >= 10;
-      console.log("✅ Подгрузка успешна, hasMore:", hasMore);
     } else {
       hasMore = false;
-      console.log("⏹️ Больше сообщений нет");
     }
   } catch (err) {
-    console.error(err);
     console.error("❌ Ошибка подгрузки:", err);
   } finally {
     isLoading = false;
   }
 }
 
-// Инициализация
 loadInitialMessages().then(() => {
   setupEventListeners();
 });
