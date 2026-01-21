@@ -108,11 +108,17 @@ router.get("/uploads/:filename", async (ctx) => {
   }
 });
 
-// Получить последние сообщения
+// Получить сообщения с пагинацией
 router.get("/api/messages", (ctx) => {
+  const { before, limit = '10' } = ctx.query;
+  // const limitNum = Math.min(50, parseInt(limit, 10) || 10);
+  const beforeTs = before ? parseInt(before, 10) : Infinity;
+
   const list = Array.from(messages.values())
+    .filter(msg => msg.timestamp < beforeTs)
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, 10);
+
   ctx.body = list;
 });
 

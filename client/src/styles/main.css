@@ -24,3 +24,10 @@ body {
   font-size: 0.9em;
   cursor: pointer;
 }
+
+/* #chat {
+  display: flex;
+  flex-direction: column-reverse;
+  overflow-y: auto;
+  height: 500px;
+} */
