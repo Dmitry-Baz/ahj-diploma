@@ -28,6 +28,29 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// Запрос разрешения на уведомления
+async function requestNotificationPermission() {
+  if (!("Notification" in window)) {
+    console.warn("Браузер не поддерживает уведомления");
+    return;
+  }
+  if (Notification.permission === "granted") return;
+  if (Notification.permission !== "denied") {
+    await Notification.requestPermission();
+  }
+}
+
+// Показ уведомления
+function showNotification(title, body) {
+  if (!("Notification" in window) || Notification.permission !== "granted") {
+    return;
+  }
+  new Notification(title, {
+    body: body,
+    icon: "/favicon.ico",
+  });
+}
+
 // Работа с избранным
 function getFavorites() {
   try {
@@ -281,6 +304,8 @@ async function loadInitialMessages() {
     if (!res.ok) throw new Error("Ошибка загрузки");
     let messages = await res.json();
 
+    // 🔥 Сервер отдаёт: новые → старые, нам нужно: старые → новые
+    messages.reverse();
     messages = messages.map((msg) => {
       if (msg.content && msg.content.startsWith("/uploads/")) {
         return { ...msg, content: `${API_BASE}${msg.content}` };
@@ -340,6 +365,39 @@ function setupEventListeners() {
           allMessages.push(newMsg);
           renderChat(allMessages);
           input.value = "";
+
+          // Уведомление для команд бота
+          if (text.toLowerCase().startsWith("@chaos:")) {
+            requestNotificationPermission();
+            setTimeout(async () => {
+              // Загружаем обновлённые сообщения с сервера
+              const params = new URLSearchParams();
+              params.append("limit", "20");
+              const url = `${API_BASE}/api/messages?${params.toString()}`;
+              const res = await fetch(url);
+              if (res.ok) {
+                let messages = await res.json();
+                // 🔥 Сервер отдаёт: новые → старые, нам нужно: старые → новые
+                messages.reverse();
+                messages = messages.map((msg) => {
+                  if (msg.content && msg.content.startsWith("/uploads/")) {
+                    return { ...msg, content: `${API_BASE}${msg.content}` };
+                  }
+                  return msg;
+                });
+                allMessages = messages;
+                renderChat(allMessages);
+                // Ищем ответ бота
+                const botResponses = allMessages.filter(
+                  (msg) => msg.timestamp > newMsg.timestamp
+                );
+                if (botResponses.length > 0) {
+                  const lastBot = botResponses[botResponses.length - 1];
+                  showNotification("Бот ответил", lastBot.content);
+                }
+              }
+            }, 500);
+          }
         } catch (err) {
           alert("Не удалось отправить сообщение");
         }
@@ -455,6 +513,8 @@ async function loadOlderMessages() {
     if (!res.ok) throw new Error("Ошибка загрузки");
     let messages = await res.json();
 
+    // 🔥 Сервер отдаёт: новые → старые, нам нужно: ещё более старые → старые
+    messages.reverse();
     messages = messages.map((msg) => {
       if (msg.content && msg.content.startsWith("/uploads/")) {
         return { ...msg, content: `${API_BASE}${msg.content}` };
