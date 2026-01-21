@@ -7,6 +7,26 @@ let allMessages = [];
 let lastTimestamp = Infinity;
 let isLoading = false;
 let hasMore = true;
+let currentFilter = "all"; // all, image, video, audio, file
+
+// Стили для фильтров
+const style = document.createElement("style");
+style.textContent = `
+  .filter-btn {
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    background: #f8f9fa;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  .filter-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+  }
+`;
+document.head.appendChild(style);
 
 // Работа с избранным
 function getFavorites() {
@@ -32,6 +52,33 @@ function toggleFavorite(msg) {
   renderChat(allMessages);
 }
 
+// Работа с закреплённым сообщением
+function getPinnedMessage() {
+  try {
+    return JSON.parse(localStorage.getItem("pinnedMessage"));
+  } catch {
+    return null;
+  }
+}
+
+function setPinnedMessage(msg) {
+  localStorage.setItem("pinnedMessage", JSON.stringify(msg));
+}
+
+function clearPinnedMessage() {
+  localStorage.removeItem("pinnedMessage");
+}
+
+function togglePin(msg) {
+  const current = getPinnedMessage();
+  if (current && current.id === msg.id) {
+    clearPinnedMessage();
+  } else {
+    setPinnedMessage(msg);
+  }
+  renderChat(allMessages);
+}
+
 function createMessageElement(msg) {
   const el = document.createElement("div");
   el.className = `message message--${msg.type}`;
@@ -49,6 +96,19 @@ function createMessageElement(msg) {
   starBtn.style.marginRight = "8px";
   starBtn.onclick = () => toggleFavorite(msg);
   el.appendChild(starBtn);
+
+  // Кнопка "закрепить"
+  const isPinned = getPinnedMessage()?.id === msg.id;
+  const pinBtn = document.createElement("button");
+  pinBtn.textContent = "📌";
+  pinBtn.title = isPinned ? "Открепить" : "Закрепить";
+  pinBtn.style.background = "none";
+  pinBtn.style.border = "none";
+  pinBtn.style.cursor = "pointer";
+  pinBtn.style.marginRight = "8px";
+  pinBtn.style.color = isPinned ? "#007bff" : "#ccc";
+  pinBtn.onclick = () => togglePin(msg);
+  el.appendChild(pinBtn);
 
   // Контент
   const contentEl = document.createElement("div");
@@ -96,17 +156,81 @@ function createMessageElement(msg) {
 
 function renderChat(messagesToShow) {
   const chat = document.getElementById("chat");
-  if (!chat) return;
+  const pinnedContainer = document.getElementById("pinned-container");
+  if (!chat || !pinnedContainer) return;
+
+  // Обработка закреплённого сообщения
+  const pinned = getPinnedMessage();
+  if (pinned) {
+    // Проверяем, проходит ли оно фильтры и поиск
+    let showPinned = true;
+    if (currentFilter !== "all" && pinned.type !== currentFilter) {
+      showPinned = false;
+    }
+    const searchInput = document.getElementById("search-input");
+    const query = searchInput?.value.trim().toLowerCase() || "";
+    if (
+      query &&
+      !(
+        (pinned.content && pinned.content.toLowerCase().includes(query)) ||
+        (pinned.filename && pinned.filename.toLowerCase().includes(query))
+      )
+    ) {
+      showPinned = false;
+    }
+
+    if (showPinned) {
+      pinnedContainer.style.display = "block";
+      pinnedContainer.innerHTML = "";
+      const pinnedEl = createMessageElement(pinned);
+      const pinnedLabel = document.createElement("div");
+      pinnedLabel.textContent = "📌 Закреплено";
+      pinnedLabel.style.fontSize = "0.9em";
+      pinnedLabel.style.color = "#007bff";
+      pinnedLabel.style.marginBottom = "4px";
+      pinnedEl.insertBefore(pinnedLabel, pinnedEl.firstChild);
+      pinnedEl.style.backgroundColor = "#f0f8ff";
+      pinnedEl.style.padding = "12px";
+      pinnedContainer.appendChild(pinnedEl);
+    } else {
+      pinnedContainer.style.display = "none";
+    }
+  } else {
+    pinnedContainer.style.display = "none";
+  }
+
+  // Обработка остальных сообщений
+  let filteredByType = messagesToShow;
+  if (currentFilter !== "all") {
+    filteredByType = messagesToShow.filter((msg) => msg.type === currentFilter);
+  }
+
+  const searchInput = document.getElementById("search-input");
+  const query = searchInput?.value.trim().toLowerCase() || "";
+  if (query) {
+    filteredByType = filteredByType.filter((msg) => {
+      if (msg.content && msg.content.toLowerCase().includes(query)) return true;
+      if (msg.filename && msg.filename.toLowerCase().includes(query))
+        return true;
+      return false;
+    });
+  }
+
+  // Убираем закреплённое из основного списка
+  const nonPinned = filteredByType.filter(
+    (msg) => !pinned || msg.id !== pinned.id
+  );
 
   chat.innerHTML = "";
-  if (messagesToShow.length === 0) {
+  if (nonPinned.length === 0 && !pinned) {
     chat.innerHTML = "<p>Сообщений нет</p>";
     return;
   }
 
-  messagesToShow.forEach((msg) => {
+  nonPinned.forEach((msg) => {
     chat.appendChild(createMessageElement(msg));
   });
+
   chat.scrollTop = chat.scrollHeight;
 }
 
@@ -118,11 +242,19 @@ async function loadInitialMessages() {
     if (!document.getElementById("chat")) {
       app.innerHTML = `
         <h1>Бот-органайзер</h1>
+        <div id="pinned-container" style="margin-bottom: 10px; display: none;"></div>
         <div style="margin-bottom: 10px;">
           <input type="text" id="search-input" placeholder="Поиск по сообщениям..." 
                  style="width: 100%; padding: 8px; box-sizing: border-box;" />
         </div>
-        <div id="chat" style="height: 380px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;"></div>
+        <div style="margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="filter-btn active" data-type="all">Все</button>
+          <button class="filter-btn" data-type="image">🖼️ Изображения</button>
+          <button class="filter-btn" data-type="video">🎥 Видео</button>
+          <button class="filter-btn" data-type="audio">🎵 Аудио</button>
+          <button class="filter-btn" data-type="file">📂 Файлы</button>
+        </div>
+        <div id="chat" style="height: 320px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;"></div>
         <div id="input-area" style="margin-top: 20px;">
           <div id="file-upload" style="margin-bottom: 10px;">
             <button id="upload-btn">📎 Загрузить файл</button>
@@ -232,7 +364,7 @@ function setupEventListeners() {
               timestamp: Date.now(),
               filename: data.filename,
             };
-            allMessages.push(fileMsg); // ← исправлено: было newMsg
+            allMessages.push(fileMsg);
             renderChat(allMessages);
           } catch (err) {
             alert("Не удалось загрузить файл");
@@ -292,21 +424,21 @@ function setupEventListeners() {
   const searchInput = document.getElementById("search-input");
   if (searchInput) {
     searchInput.addEventListener("input", () => {
-      const query = searchInput.value.trim().toLowerCase();
-      if (query === "") {
-        renderChat(allMessages);
-      } else {
-        const filtered = allMessages.filter((msg) => {
-          if (msg.content && msg.content.toLowerCase().includes(query))
-            return true;
-          if (msg.filename && msg.filename.toLowerCase().includes(query))
-            return true;
-          return false;
-        });
-        renderChat(filtered);
-      }
+      renderChat(allMessages);
     });
   }
+
+  // Фильтры
+  document.querySelectorAll(".filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document
+        .querySelectorAll(".filter-btn")
+        .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentFilter = btn.dataset.type;
+      renderChat(allMessages);
+    });
+  });
 }
 
 async function loadOlderMessages() {
