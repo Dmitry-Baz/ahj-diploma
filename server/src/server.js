@@ -68,6 +68,9 @@ router.post("/api/messages", koaBody(), async (ctx) => {
 app.use(koaStatic(path.join(__dirname, "../uploads")));
 
 app.use(router.routes());
-app.listen(3001, () => {
-  console.log("✅ Сервер запущен на http://localhost:3001");
+
+// 🔥 Главное изменение: используем PORT из окружения
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`✅ Сервер запущен на порту ${PORT}`);
 });
