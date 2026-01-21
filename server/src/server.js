@@ -13,12 +13,19 @@ const messages = new Map();
 
 // CORS
 app.use(async (ctx, next) => {
+  // Разрешаем запросы с любого origin
   ctx.set("Access-Control-Allow-Origin", "*");
-  ctx.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  // Разрешаем заголовки, которые может прислать браузер
+  ctx.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  // Разрешаем методы
+  ctx.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+
+  // Отвечаем на preflight-запрос
   if (ctx.method === "OPTIONS") {
     ctx.status = 204;
     return;
   }
+
   await next();
 });
 
