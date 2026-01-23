@@ -1,8 +1,6 @@
 # 🤖 Глобальный бот-органайзер
 Веб-приложение-мессенджер с ботом для хранения, поиска и организации личной информации.
 
-https://github.com/Dmitry-Baz/ahj-diploma/actions/workflows/web.yml/badge.svg
-https://github.com/Dmitry-Baz/ahj-homeworks_events/actions/workflows/web.yml/badge.svg
 ![CI](https://github.com/Dmitry-Baz/ahj-homeworks_events/actions/workflows/web.yml/badge.svg)
 
 🔗 **Демо**: [https://Dmitry-Baz.github.io/ahj-diploma/](https://Dmitry-Baz.github.io/ahj-diploma/)
