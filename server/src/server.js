@@ -187,8 +187,15 @@ router.post("/api/files", async (ctx) => {
     const filename = `${id}${ext}`;
     const dest = path.join(__dirname, "..", "uploads", filename);
 
-    // Перемещаем файл (используем fsp, а не fs)
-    await fsp.rename(filepath, dest);
+    // Убедимся, что папка uploads существует
+    const uploadsDir = path.join(__dirname, "..", "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    // Копируем, а не переименовываем (чтобы избежать EXDEV)
+    await fsp.copyFile(filepath, dest);
+    await fsp.unlink(filepath); // удаляем временный файл
 
     // Определяем тип
     let type = "file";
@@ -210,7 +217,7 @@ router.post("/api/files", async (ctx) => {
   } catch (err) {
     console.error("Upload error:", err);
     ctx.status = 500;
-    ctx.body = { error: "Ошибка загрузки" };
+    ctx.body = { error: "Ошибка загрузки: " + err.message };
   }
 });
 
