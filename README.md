@@ -2,7 +2,8 @@
 Веб-приложение-мессенджер с ботом для хранения, поиска и организации личной информации.
 
 https://github.com/Dmitry-Baz/ahj-diploma/actions/workflows/web.yml/badge.svg
-[![Build status](https://ci.appveyor.com/api/projects/status/ваш-id?svg=true)](https://ci.appveyor.com/project/ваш-логин/название-проекта)
+https://github.com/Dmitry-Baz/ahj-homeworks_events/actions/workflows/web.yml/badge.svg
+![CI](https://github.com/Dmitry-Baz/ahj-homeworks_events/actions/workflows/web.yml/badge.svg)
 
 🔗 **Демо**: [https://Dmitry-Baz.github.io/ahj-diploma/](https://Dmitry-Baz.github.io/ahj-diploma/)
 📡 **Backend**: [https://ahj-diploma-server-zbn4.onrender.com/](https://ahj-diploma-server-zbn4.onrender.com/)
